@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bản đồ chi tiết Rừng Quốc gia Cúc Phương</title>
+  <!-- Leaflet core -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Plugins -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+  <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.css" />
+  <script src="https://unpkg.com/leaflet.locatecontrol/dist/L.Control.Locate.min.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-measure/dist/leaflet-measure.css" />
+  <script src="https://unpkg.com/leaflet-measure/dist/leaflet-measure.min.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+
+  <style>
+    :root {
+      --bg: #0b1118;
+      --panel: #101826;
+      --accent: #38bdf8;
+      --text: #e6edf3;
+      --muted: #93a2b1;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      color: var(--text);
+      background: var(--bg);
+      display: grid;
+      grid-template-rows: 64px 1fr;
+    }
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 16px; background: var(--panel); border-bottom: 1px solid #1f2b3a;
+    }
+    header .title { font-weight: 700; letter-spacing: .3px; }
+    header .controls { display: flex; gap: 8px; align-items: center; }
+    header .controls input[type="text"] {
+      background: #0f1724; color: var(--text); border: 1px solid #243246;
+      padding: 8px 12px; border-radius: 10px; width: 280px;
+    }
+    header .btn {
+      background: var(--accent); color: #00111a; font-weight: 700;
+      padding: 8px 12px; border: 0; border-radius: 10px; cursor: pointer;
+    }
+
+    main { display: grid; grid-template-columns: 320px 1fr; min-height: 0; }
+    #sidebar {
+      background: var(--panel);
+      border-right: 1px solid #1f2b3a; overflow: auto; padding: 12px;
+    }
+    #sidebar h3 { margin: 12px 8px; color: var(--muted); font-weight: 600; }
+    .filter-group { display: grid; gap: 8px; padding: 8px; }
+    .pill { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid #223146; border-radius: 12px; }
+    .pill input { transform: scale(1.1); }
+
+    .poi-list { display: grid; gap: 8px; padding: 8px; }
+    .poi-item { padding: 10px; border: 1px solid #223146; border-radius: 12px; background: #0f1724; }
+    .poi-item .name { font-weight: 700; }
+    .poi-item .cat { font-size: 12px; color: var(--muted); }
+    .poi-item button { margin-top: 8px; width: 100%; padding: 6px 10px; border-radius: 10px; border: 0; background: #213247; color: var(--text); cursor: pointer; }
+
+    #map { height: 100%; width: 100%; }
+    .leaflet-container { font: 14px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    .legend { background: white; padding: 8px 10px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,.2); }
+    .legend h4 { margin: 0 0 6px; font-size: 13px; }
+    .legend .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+    .badge { display:inline-block; min-width: 10px; height: 10px; border-radius: 50%; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">🗺️ Bản đồ chi tiết Rừng Quốc gia Cúc Phương</div>
+    <div class="controls">
+      <input id="searchBox" type="text" placeholder="Tìm điểm trong công viên… (ví dụ: Động Người Xưa)" />
+      <button class="btn" id="locateBtn">Vị trí của tôi</button>
+    </div>
+  </header>
+
+  <main>
+    <aside id="sidebar">
+      <h3>Bộ lọc điểm tham quan</h3>
+      <div class="filter-group">
+        <label class="pill"><input type="checkbox" class="filter" value="viewpoint" checked /> Cảnh quan</label>
+        <label class="pill"><input type="checkbox" class="filter" value="cave" checked /> Hang động</label>
+        <label class="pill"><input type="checkbox" class="filter" value="facility" checked /> Dịch vụ / trung tâm</label>
+        <label class="pill"><input type="checkbox" class="filter" value="tree" checked /> Cây cổ thụ</label>
+        <label class="pill"><input type="checkbox" class="filter" value="trailhead" checked /> Đầu đường mòn</label>
+      </div>
+      <h3>Danh sách điểm</h3>
+      <div class="poi-list" id="poiList"></div>
+    </aside>
+
+    <div id="map"></div>
+  </main>
+
+  <script>
+    // 1) Khởi tạo bản đồ
+    const center = [20.305, 105.6069];
+    const map = L.map('map', {
+      center, zoom: 13, minZoom: 11, maxZoom: 18,
+      zoomControl: false
+    });
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // 2) Lớp nền (base layers)
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    const esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+    });
+
+    const esriTopo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; World Topo Map'
+    });
+
+    L.control.layers(
+      { 'OSM': osm, 'Esri Satellite': esriSat, 'Esri Topo': esriTopo },
+      {}, { position: 'topright', collapsed: true }
+    ).addTo(map);
+
+    // 3) Ranh giới tham chiếu (xấp xỉ) để hạn chế kéo quá xa
+    const bounds = L.latLngBounds([20.22, 105.51], [20.38, 105.70]);
+    map.setMaxBounds(bounds);
+
+    // 4) Tiện ích
+    L.control.scale({ imperial: false }).addTo(map);
+    const locate = L.control.locate({ position: 'topright', strings: { title: 'Định vị vị trí của tôi' } }).addTo(map);
+    document.getElementById('locateBtn').addEventListener('click', () => locate.start());
+
+    const measure = new L.Control.Measure({ position: 'topright', primaryLengthUnit: 'meters', secondaryLengthUnit: 'kilometers', primaryAreaUnit: 'sqmeters', activeColor: '#38bdf8', completedColor: '#22c55e' });
+    measure.addTo(map);
+
+    // 5) Bộ dữ liệu POI (mẫu minh hoạ, có thể thay bằng dữ liệu thật/GeoJSON)
+    const POIS = [
+      { id: 1, name: 'Cổng Vào Cúc Phương', cat: 'facility', coords: [20.3065, 105.6095], desc: 'Điểm bắt đầu hành trình khám phá.' },
+      { id: 2, name: 'Trung tâm Du khách', cat: 'facility', coords: [20.3152, 105.6108], desc: 'Thông tin, vé, hướng dẫn.' },
+      { id: 3, name: 'Động Người Xưa', cat: 'cave', coords: [20.3318, 105.6115], desc: 'Di chỉ khảo cổ, dấu tích người tiền sử.' },
+      { id: 4, name: 'Cây Chò Ngàn Năm', cat: 'tree', coords: [20.3190, 105.5948], desc: 'Cây chò cổ thụ biểu tượng của Cúc Phương.' },
+      { id: 5, name: 'EPRC – Trung tâm Cứu hộ Linh trưởng', cat: 'facility', coords: [20.3136, 105.6100], desc: 'Endangered Primate Rescue Center.' },
+      { id: 6, name: 'TCC – Trung tâm Bảo tồn Rùa', cat: 'facility', coords: [20.3125, 105.6115], desc: 'Turtle Conservation Center.' },
+      { id: 7, name: 'Đầu đường mòn – Cây Sấu cổ', cat: 'trailhead', coords: [20.3166, 105.5997], desc: 'Lối vào một số đường mòn rừng.' },
+      { id: 8, name: 'Điểm ngắm cảnh – Thung lũng', cat: 'viewpoint', coords: [20.3005, 105.5830], desc: 'Tầm nhìn thung lũng rừng.' }
+    ];
+
+    // 6) Biểu tượng theo danh mục
+    const iconColors = { facility: '#38bdf8', cave: '#f97316', tree: '#22c55e', viewpoint: '#a78bfa', trailhead: '#eab308' };
+    function svgIcon(color) {
+      return L.divIcon({
+        className: 'custom-marker',
+        html: `<svg width="28" height="28" viewBox="0 0 28 28" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="14" cy="14" r="10" fill="white" stroke="${color}" stroke-width="3" />
+          <circle cx="14" cy="14" r="5" fill="${color}" />
+        </svg>`,
+        iconSize: [28, 28], iconAnchor: [14, 28], popupAnchor: [0, -28]
+      });
+    }
+
+    // 7) Layer cụm hoá marker
+    const cluster = L.markerClusterGroup({ showCoverageOnHover: false, disableClusteringAtZoom: 16 });
+
+    // 8) Thêm marker + popup
+    const markersById = new Map();
+    POIS.forEach(p => {
+      const m = L.marker(p.coords, { icon: svgIcon(iconColors[p.cat]) })
+        .bindPopup(`<b>${p.name}</b><br/>${p.desc}<br/><i>Loại: ${p.cat}</i>`);
+      m.feature = { properties: { cat: p.cat, id: p.id, name: p.name } };
+      markersById.set(p.id, m);
+      cluster.addLayer(m);
+    });
+    map.addLayer(cluster);
+
+    // 9) Sidebar danh sách + lọc theo danh mục
+    const poiList = document.getElementById('poiList');
+    function renderList() {
+      const activeCats = new Set([...document.querySelectorAll('.filter:checked')].map(el => el.value));
+      poiList.innerHTML = '';
+      cluster.clearLayers();
+      POIS.filter(p => activeCats.has(p.cat)).forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'poi-item';
+        div.innerHTML = `<div class="name">${p.name}</div><div class="cat">${p.cat}</div><button data-id="${p.id}">Phóng tới</button>`;
+        poiList.appendChild(div);
+        cluster.addLayer(markersById.get(p.id));
+      });
+    }
+    document.querySelectorAll('.filter').forEach(cb => cb.addEventListener('change', renderList));
+    poiList.addEventListener('click', e => {
+      if (e.target.tagName === 'BUTTON') {
+        const id = +e.target.getAttribute('data-id');
+        const m = markersById.get(id);
+        if (m) { map.setView(m.getLatLng(), 16); m.openPopup(); }
+      }
+    });
+    renderList();
+
+    // 10) Tìm kiếm nội bộ (ô search trên header)
+    const searchBox = document.getElementById('searchBox');
+    searchBox.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const q = searchBox.value.trim().toLowerCase();
+        if (!q) return;
+        const hit = POIS.find(p => p.name.toLowerCase().includes(q));
+        if (hit) { map.setView(hit.coords, 16); markersById.get(hit.id).openPopup(); }
+      }
+    });
+
+    // 11) Geocoder (tìm trên OSM – hỗ trợ gõ từ khoá rộng)
+    L.Control.geocoder({ defaultMarkGeocode: false, placeholder: 'Tìm kiếm OSM…' })
+      .on('markgeocode', function(e) { map.fitBounds(e.geocode.bbox); })
+      .addTo(map);
+
+    // 12) Vẽ tuyến/điểm (ghi chú hiện trường)
+    const drawnItems = new L.FeatureGroup();
+    map.addLayer(drawnItems);
+    new L.Control.Draw({
+      position: 'topright',
+      draw: { polygon: true, polyline: true, rectangle: true, circle: false, marker: true, circlemarker: false },
+      edit: { featureGroup: drawnItems }
+    }).addTo(map);
+    map.on(L.Draw.Event.CREATED, function (e) { drawnItems.addLayer(e.layer); });
+
+    // 13) Tuyến đường gợi ý (Routing) dùng OSRM demo server
+    const routing = L.Routing.control({
+      waypoints: [ ],
+      routeWhileDragging: true,
+      geocoder: L.Control.Geocoder.nominatim(),
+      showAlternatives: true,
+      altLineOptions: { styles: [{opacity: 0.7}, {opacity: 0.7}] },
+      position: 'topright'
+    }).addTo(map);
+
+    // Click vào bản đồ để thêm waypoint (tối đa 2 cho đơn giản)
+    map.on('click', (e) => {
+      const wps = routing.getWaypoints().filter(w => w.latLng); // hiện có
+      if (wps.length >= 2) { routing.setWaypoints([e.latlng]); } // reset với điểm đầu mới
+      else { routing.spliceWaypoints(wps.length, 1, e.latlng); }
+    });
+
+    // 14) Đường mòn minh hoạ (GeoJSON đơn giản)
+    const trails = {
+      "type": "FeatureCollection",
+      "features": [
+        {"type":"Feature","properties":{"name":"Đường mòn Thung lũng"},"geometry":{"type":"LineString","coordinates":[[105.6005,20.3145],[105.5960,20.3100],[105.5905,20.3060],[105.5850,20.3015]]}},
+        {"type":"Feature","properties":{"name":"Lối vào Cây Chò"},"geometry":{"type":"LineString","coordinates":[[105.5997,20.3166],[105.5972,20.3140],[105.5950,20.3122],[105.5948,20.3190]]}}
+      ]
+    };
+    function styleTrail() { return { color: '#22c55e', weight: 3 }; }
+    L.geoJSON(trails, { style: styleTrail, onEachFeature: (f, l) => l.bindPopup(f.properties.name) }).addTo(map);
+
+    // 15) Chú giải (Legend)
+    const legend = L.control({ position: 'bottomleft' });
+    legend.onAdd = function() {
+      const div = L.DomUtil.create('div', 'legend');
+      div.innerHTML = `
+        <h4>Chú giải</h4>
+        <div class="row"><span class="badge" style="background:${iconColors.facility}"></span> Dịch vụ/Trung tâm</div>
+        <div class="row"><span class="badge" style="background:${iconColors.cave}"></span> Hang động</div>
+        <div class="row"><span class="badge" style="background:${iconColors.tree}"></span> Cây cổ thụ</div>
+        <div class="row"><span class="badge" style="background:${iconColors.viewpoint}"></span> Cảnh quan</div>
+        <div class="row"><span class="badge" style="background:${iconColors.trailhead}"></span> Đầu đường mòn</div>
+        <div class="row"><span class="badge" style="background:#22c55e"></span> Đường mòn</div>
+      `;
+      return div;
+    };
+    legend.addTo(map);
+
+    // 16) Gợi ý: tải/sao lưu các ghi chú đã vẽ (xuất GeoJSON)
+    function exportDrawn() {
+      const gj = drawnItems.toGeoJSON();
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(gj));
+      const a = document.createElement('a');
+      a.href = dataStr; a.download = 'ghi-chu-cuc-phuong.geojson'; a.click();
+    }
+
+    // Thêm phím tắt: Ctrl+S để xuất GeoJSON các ghi chú
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+        e.preventDefault(); exportDrawn();
+      }
+    });
+
+  </script>
+</body>
+</html>
